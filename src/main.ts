@@ -1,16 +1,33 @@
 import { App, Construct, Stack, StackProps, Fn } from '@aws-cdk/core';
 import * as eks from '@aws-cdk/aws-eks';
 import * as ec2 from '@aws-cdk/aws-ec2';
+import * as iam from '@aws-cdk/aws-iam';
 
 export class Demo extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id)
 
+    const mastersRole = new iam.Role(this, 'MasterRole', {
+      assumedBy: new iam.AccountRootPrincipal(),
+      roleName: 'EksAdminRole',
+    });
+
     const cluster = new eks.Cluster(this, 'Cluster', {
       vpc: getOrCreateVpc(this),
+      mastersRole,
       version: eks.KubernetesVersion.V1_18,
       defaultCapacity: 0,
     })
+
+    // Conditionally add aws console login user to the RBAC so we can browse the EKS workloads
+    const consoleUserString = this.node.tryGetContext('console_user')
+    if (consoleUserString !== undefined) {
+      const consoleUser = iam.User.fromUserName(this, 'ConsoleUser', consoleUserString)
+      cluster.awsAuth.addUserMapping(consoleUser, {
+        groups: ['system:masters'],
+      })
+    }
+
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
@@ -40,8 +57,6 @@ export class Demo extends Construct {
       },
       desiredSize: 2,
     });
-
-
   }
 }
 export class MyStack extends Stack {
@@ -50,11 +65,9 @@ export class MyStack extends Stack {
 
     new Demo(this, 'Demo')
 
-    // define resources here...
   }
 }
 
-// for development, use account/region from cdk cli
 const devEnv = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
   region: process.env.CDK_DEFAULT_REGION,
@@ -63,7 +76,6 @@ const devEnv = {
 const app = new App();
 
 new MyStack(app, 'my-stack-dev', { env: devEnv });
-// new MyStack(app, 'my-stack-prod', { env: prodEnv });
 
 app.synth();
 
