@@ -21,7 +21,7 @@ export class Demo extends Construct {
 
     // Conditionally add aws console login user to the RBAC so we can browse the EKS workloads
     const consoleUserString = this.node.tryGetContext('console_user')
-    if (consoleUserString !== undefined) {
+    if (consoleUserString) {
       const consoleUser = iam.User.fromUserName(this, 'ConsoleUser', consoleUserString)
       cluster.awsAuth.addUserMapping(consoleUser, {
         groups: ['system:masters'],
