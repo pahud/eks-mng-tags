@@ -1,4 +1,4 @@
-import { App, Construct, Stack, StackProps, Fn } from '@aws-cdk/core';
+import { App, Construct, Stack, Fn } from '@aws-cdk/core';
 import * as eks from '@aws-cdk/aws-eks';
 import * as ec2 from '@aws-cdk/aws-ec2';
 import * as iam from '@aws-cdk/aws-iam';
@@ -59,14 +59,6 @@ export class Demo extends Construct {
     });
   }
 }
-export class MyStack extends Stack {
-  constructor(scope: Construct, id: string, props: StackProps = {}) {
-    super(scope, id, props);
-
-    new Demo(this, 'Demo')
-
-  }
-}
 
 const devEnv = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -75,7 +67,9 @@ const devEnv = {
 
 const app = new App();
 
-new MyStack(app, 'my-stack-dev', { env: devEnv });
+const stack = new Stack(app, 'my-stack-dev', { env: devEnv });
+
+new Demo(stack, 'Demo')
 
 app.synth();
 
