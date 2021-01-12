@@ -1088,7 +1088,7 @@ set -o xtrace
       "Properties": Object {
         "DestinationCidrBlock": Object {
           "Fn::GetAtt": Array [
-            "Vpc8378EB38",
+            "NewVpcC4541DFD",
             "CidrBlock",
           ],
         },

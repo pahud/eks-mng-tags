@@ -34,7 +34,7 @@ export class VpcPeering extends Construct {
     // existingVpc(private subnets) --> peering --> newVpc
     new ec2.CfnRoute(this, 'Existing2NewRoute', {
       routeTableId: props.vpc.privateSubnets[0].routeTable.routeTableId,
-      destinationCidrBlock: props.vpc.vpcCidrBlock,
+      destinationCidrBlock: props.peerVpc.vpcCidrBlock,
       vpcPeeringConnectionId: peeringConnection.ref,
     });
     // newVpc(private subnets) --> peering --> existingVpc
