@@ -16,5 +16,4 @@ project.npmignore.exclude(...common_exclude);
 project.gitignore.exclude(...common_exclude);
 
 
-
 project.synth();

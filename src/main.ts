@@ -1,7 +1,7 @@
-import { App, Construct, Stack, StackProps, Fn } from '@aws-cdk/core';
-import * as eks from '@aws-cdk/aws-eks';
 import * as ec2 from '@aws-cdk/aws-ec2';
+import * as eks from '@aws-cdk/aws-eks';
 import * as iam from '@aws-cdk/aws-iam';
+import { App, Construct, Stack, StackProps, Fn } from '@aws-cdk/core';
 
 /**
  * Props for VpcPeering
@@ -23,26 +23,26 @@ export interface VpcPeeringProps {
 export class VpcPeering extends Construct {
   readonly peeringConnection: ec2.CfnVPCPeeringConnection
   constructor(scope: Construct, id: string, props: VpcPeeringProps) {
-    super(scope, id)
+    super(scope, id);
 
     const peeringConnection = new ec2.CfnVPCPeeringConnection(this, 'VpcPeeringConnection', {
       vpcId: props.vpc.vpcId,
-      peerVpcId: props.peerVpc.vpcId
-    })
-    this.peeringConnection = peeringConnection
+      peerVpcId: props.peerVpc.vpcId,
+    });
+    this.peeringConnection = peeringConnection;
 
     // existingVpc(private subnets) --> peering --> newVpc
     new ec2.CfnRoute(this, 'Existing2NewRoute', {
       routeTableId: props.vpc.privateSubnets[0].routeTable.routeTableId,
       destinationCidrBlock: props.vpc.vpcCidrBlock,
       vpcPeeringConnectionId: peeringConnection.ref,
-    })
+    });
     // newVpc(private subnets) --> peering --> existingVpc
     new ec2.CfnRoute(this, 'New2ExistingRoute', {
       routeTableId: props.peerVpc.privateSubnets[0].routeTable.routeTableId,
       destinationCidrBlock: props.vpc.vpcCidrBlock,
       vpcPeeringConnectionId: peeringConnection.ref,
-    })
+    });
   }
 }
 
@@ -55,8 +55,8 @@ export interface EksDemoProps {
 }
 
 export class EksDemo extends Construct {
-  constructor(scope: Construct, id: string, props: EksDemoProps) {
-    super(scope, id)
+  constructor(scope: Construct, id: string, props: EksDemoProps = {}) {
+    super(scope, id);
 
     const mastersRole = new iam.Role(this, 'MasterRole', {
       assumedBy: new iam.AccountRootPrincipal(),
@@ -68,15 +68,15 @@ export class EksDemo extends Construct {
       mastersRole,
       version: eks.KubernetesVersion.V1_18,
       defaultCapacity: 0,
-    })
+    });
 
     // Conditionally add aws console login user to the RBAC so we can browse the EKS workloads
-    const consoleUserString = this.node.tryGetContext('console_user')
+    const consoleUserString = this.node.tryGetContext('console_user');
     if (consoleUserString) {
-      const consoleUser = iam.User.fromUserName(this, 'ConsoleUser', consoleUserString)
+      const consoleUser = iam.User.fromUserName(this, 'ConsoleUser', consoleUserString);
       cluster.awsAuth.addUserMapping(consoleUser, {
         groups: ['system:masters'],
-      })
+      });
     }
 
     const userData = ec2.UserData.forLinux();
@@ -95,11 +95,11 @@ export class EksDemo extends Construct {
           {
             resourceType: 'instance',
             tags: [
-              { key: 'Name', value: 'MNG'},
+              { key: 'Name', value: 'MNG' },
               { key: 'Foo', value: 'BAR' },
-            ]
-          }
-        ]
+            ],
+          },
+        ],
       },
     });
     cluster.addNodegroupCapacity('extra-ng', {
@@ -112,34 +112,34 @@ export class EksDemo extends Construct {
   }
 }
 
+
 export class MyStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps = {}) {
     super(scope, id, props);
 
-    if (this.node.tryGetContext('use_vpc_id') === undefined) {
-      throw new Error('ERROR - specify your existing vpc with `-c use_vpc_id=<VPC_ID>`')
-    }
-    // prepare existing Vpc
-    const existingVpc = ec2.Vpc.fromLookup(this, 'Vpc', { vpcId: this.node.tryGetContext('use_vpc_id') })
+    // prepare existing vpc
+    const leftVpcId = this.node.tryGetContext('use_vpc_id');
+    // if use_vpc_id not defined, create a new one
+    const leftVpc = leftVpcId !== undefined ?
+      ec2.Vpc.fromLookup(this, 'Vpc', { vpcId: leftVpcId }) :
+      new ec2.Vpc(this, 'Vpc', { natGateways: 1 });
+
     // create new vpc
-    const newVpc = new ec2.Vpc(this, 'NewVpc', {
+    const rightVpc = new ec2.Vpc(this, 'NewVpc', {
       natGateways: 1,
       cidr: '10.1.0.0/16',
-    })
+    });
 
-
-    
     // create the peering for the two Vpcs
     new VpcPeering(this, 'Peering', {
-      vpc: existingVpc,
-      peerVpc: newVpc,
-    })
+      vpc: leftVpc,
+      peerVpc: rightVpc,
+    });
 
     // let's create the EKS cluster in the new Vpc
     new EksDemo(this, 'EksDemo', {
-      vpc: newVpc,
-    })
-
+      vpc: rightVpc,
+    });
   }
 }
 
