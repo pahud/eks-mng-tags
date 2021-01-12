@@ -1,6 +1,7 @@
 import { App, Construct, Stack, StackProps, Fn } from '@aws-cdk/core';
 import * as eks from '@aws-cdk/aws-eks';
 import * as ec2 from '@aws-cdk/aws-ec2';
+import * as iam from '@aws-cdk/aws-iam';
 
 /**
  * Props for VpcPeering
@@ -49,6 +50,15 @@ export class EksDemo extends Construct {
       version: eks.KubernetesVersion.V1_18,
       defaultCapacity: 0,
     })
+
+    // Conditionally add aws console login user to the RBAC so we can browse the EKS workloads
+    const consoleUserString = this.node.tryGetContext('console_user')
+    if (consoleUserString) {
+      const consoleUser = iam.User.fromUserName(this, 'ConsoleUser', consoleUserString)
+      cluster.awsAuth.addUserMapping(consoleUser, {
+        groups: ['system:masters'],
+      })
+    }
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
