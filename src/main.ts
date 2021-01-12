@@ -30,6 +30,19 @@ export class VpcPeering extends Construct {
       peerVpcId: props.peerVpc.vpcId
     })
     this.peeringConnection = peeringConnection
+
+    // existingVpc(private subnets) --> peering --> newVpc
+    new ec2.CfnRoute(this, 'Existing2NewRoute', {
+      routeTableId: props.vpc.privateSubnets[0].routeTable.routeTableId,
+      destinationCidrBlock: props.vpc.vpcCidrBlock,
+      vpcPeeringConnectionId: peeringConnection.ref,
+    })
+    // newVpc(private subnets) --> peering --> existingVpc
+    new ec2.CfnRoute(this, 'New2ExistingRoute', {
+      routeTableId: props.peerVpc.privateSubnets[0].routeTable.routeTableId,
+      destinationCidrBlock: props.vpc.vpcCidrBlock,
+      vpcPeeringConnectionId: peeringConnection.ref,
+    })
   }
 }
 
@@ -113,6 +126,9 @@ export class MyStack extends Stack {
       natGateways: 1,
       cidr: '10.1.0.0/16',
     })
+
+
+    
     // create the peering for the two Vpcs
     new VpcPeering(this, 'Peering', {
       vpc: existingVpc,
@@ -134,7 +150,7 @@ const devEnv = {
 
 const app = new App();
 
-new Stack(app, 'my-stack-dev', { env: devEnv });
+new MyStack(app, 'my-stack-dev', { env: devEnv });
 
 app.synth();
 
