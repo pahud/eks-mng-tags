@@ -45,8 +45,14 @@ export class EksDemo extends Construct {
   constructor(scope: Construct, id: string, props: EksDemoProps) {
     super(scope, id)
 
+    const mastersRole = new iam.Role(this, 'MasterRole', {
+      assumedBy: new iam.AccountRootPrincipal(),
+      roleName: 'EksAdminRole',
+    });
+
     const cluster = new eks.Cluster(this, 'Cluster', {
       vpc: props.vpc ?? getOrCreateVpc(this),
+      mastersRole,
       version: eks.KubernetesVersion.V1_18,
       defaultCapacity: 0,
     })
@@ -121,7 +127,6 @@ export class MyStack extends Stack {
   }
 }
 
-// for development, use account/region from cdk cli
 const devEnv = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
   region: process.env.CDK_DEFAULT_REGION,
@@ -129,8 +134,7 @@ const devEnv = {
 
 const app = new App();
 
-new MyStack(app, 'my-stack-dev', { env: devEnv });
-// new MyStack(app, 'my-stack-prod', { env: prodEnv });
+new Stack(app, 'my-stack-dev', { env: devEnv });
 
 app.synth();
 
